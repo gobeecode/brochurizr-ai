@@ -23,7 +23,7 @@ Brochure Creator developed using python and artificial intelligence.
   - Download them using `ollama run MODEL_NAME`.
   - To view the list of all available models, Click [here](https://ollama.com/search)
   - Enter the model name to use, when the script prompts for the model name.
-  - 
+
 ## Usage
 - Execute the below command in the commandline.
   ```shell

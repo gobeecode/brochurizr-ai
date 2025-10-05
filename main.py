@@ -1,9 +1,8 @@
 from dotenv import load_dotenv
+
 from brochurizer import Brochurizer
-from helpers.time_helper import TimeHelper
 from helpers.url_helper import URLHelper
 from webpage import Webpage
-import json
 
 load_dotenv()
 
@@ -47,6 +46,9 @@ def prompt_for_model(platform: str):
         print(f"ℹ️ Selected model: {model}")
         return model
 
+def prompt_for_export():
+    export = input("Do you want to export the brochure as a markdown file? (Y/n): ").strip().lower() or 'y'
+    return export == 'y'
 
 def main():
     while True:
@@ -54,9 +56,10 @@ def main():
             url = prompt_for_url()
             platform = prompt_for_platform()
             model = prompt_for_model(platform)
+            export = prompt_for_export()
             webpage = Webpage(url)
             brochurizer = Brochurizer(platform=platform, model=model, webpage=webpage)
-            brochurizer.create_brochure()
+            brochurizer.create_brochure(export=export)
             break
         except (ValueError, OSError) as e:
             print(f"❌ Brochure creation failed: {e}")
@@ -67,7 +70,7 @@ def main():
             print("\nOperation cancelled by user.")
             break
         except Exception as e:
-            print(f"❌ An unexpected error occurred: {e}")
+            raise Exception(f"❌ An unexpected error occurred: {e}") from e
             break
 
 

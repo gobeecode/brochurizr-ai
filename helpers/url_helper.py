@@ -1,5 +1,7 @@
 from urllib.parse import urlparse
+
 import requests
+
 
 class URLHelper:
 

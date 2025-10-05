@@ -1,11 +1,15 @@
-import os
+import ollama
+import json
+from pathlib import Path
+
 import ollama
 import openai
 
 from helpers.credential_helper import CredentialHelper
+from helpers.file_helper import FileHelper
 from helpers.time_helper import TimeHelper
 from webpage import Webpage
-import json
+
 
 class Brochurizer:
     def __init__(self, platform: str, model: str, webpage: Webpage):
@@ -67,7 +71,7 @@ class Brochurizer:
         ]
         return messages
 
-    def create_brochure(self):
+    def create_brochure(self, export=True):
         with TimeHelper.measure('create_brochure'):
             contents = self.webpage.text
             print(f"Brochure creation started for {self.webpage.title}")
@@ -80,10 +84,13 @@ class Brochurizer:
             except json.JSONDecodeError as e:
                 raise ValueError(f"Parse links as JSON failed: {e}") from e
             for link in brochure_links_json.get('links', []):
-                print(f"Fetching {link['type']} contents...")
-                webpage = Webpage(link.get('url'))
-                contents += f"\n\n{link.get('type')}"
-                contents += f"\n{webpage.text}"
+                print(f"Fetching {link.get('type')} contents...")
+                try:
+                    contents += f"\n\n{link.get('type')}"
+                    contents += f"\n{Webpage(link.get('url')).text}"
+                except Exception as e:
+                    # Ignoring the contents of the page with errors.
+                    print(f"⚠️ Could not fetch {link.get('type')} contents: {e}")
             messages = self.get_create_brochure_messages(contents)
             if self.platform == 'openai':
                 CredentialHelper.validate_openai_api_key()
@@ -94,9 +101,20 @@ class Brochurizer:
                 print(f"\n{response.choices[0].message.content}")
             else:
                 print("Creating brochure...")
-                response = ollama.chat(model=self.model, messages=messages)
-                print(f"\n{response['message']['content']}")
+                response = ollama.chat(model=self.model, messages=messages, stream=True)
+                brochure_content = ""
+                for chunk in response:
+                    content = chunk.get("message", {}).get("content", "")
+                    print(content, end='', flush=True)
+                    brochure_content += content
+                if export:
+                    brochure_file_name = FileHelper.normalize_filename(self.webpage.title, prefix="brochure", ext="md")
+                    brochure_file_path = Path("output", brochure_file_name)
+                    brochure_file_path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(brochure_file_path, "w") as brochure_file:
+                        brochure_file.write(brochure_content)
         elapsed = TimeHelper.get_elapsed('create_brochure')
-        print(f"✅ Brochure created using {self.model} in {elapsed:.4f} seconds.")
+        print(f"✅ Brochure creation completed using {self.model} in {elapsed:.4f} seconds.")
+        print(f"📁 Brochure created at {brochure_file_path}.")
 
 

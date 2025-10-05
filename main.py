@@ -20,10 +20,12 @@ def prompt_for_url():
 
 def prompt_for_platform():
     while True:
-        platform = input("Enter the platform name: (Default: ollama. Supported: ollama, openai) ").strip().lower()
+        supported_platforms = ['ollama', 'openai']
+        platform = input(f"Enter the platform name: (Default: {supported_platforms[0]}. "
+                         f"Supported: {supported_platforms}) ").strip().lower()
         if not platform:
-            platform = 'ollama'
-        if platform not in ['ollama', 'openai']:
+            platform = supported_platforms[0]
+        if platform not in supported_platforms:
             print("❌ Invalid platform. Please enter a valid platform name.")
             continue
         print(f"ℹ️ Selected platform: {platform}")
@@ -46,9 +48,27 @@ def prompt_for_model(platform: str):
         print(f"ℹ️ Selected model: {model}")
         return model
 
+
+def prompt_for_translation():
+    while True:
+        supported_languages = ["spanish", "english", "french", "chinese", "german"]
+        language = input(f"Enter the language to translate the brochure. (Default: None. "
+                         f"Supported: {supported_languages}): ").strip().lower()
+        if not language:
+            print(f"ℹ️ Translation language was not specified. Brochure will not be translated.")
+            return None
+        if language not in supported_languages:
+            print(f"❌ Translation language was not supported. "
+                  f"Please select a valid language from {supported_languages}.")
+            continue
+        print(f"ℹ️ Selected Language: {language}")
+        return language
+
+
 def prompt_for_export():
     export = input("Do you want to export the brochure as a markdown file? (Y/n): ").strip().lower() or 'y'
     return export == 'y'
+
 
 def main():
     while True:
@@ -56,10 +76,11 @@ def main():
             url = prompt_for_url()
             platform = prompt_for_platform()
             model = prompt_for_model(platform)
+            language = prompt_for_translation()
             export = prompt_for_export()
             webpage = Webpage(url)
             brochurizer = Brochurizer(platform=platform, model=model, webpage=webpage)
-            brochurizer.create_brochure(export=export)
+            brochurizer.create_brochure(export=export, language=language)
             break
         except (ValueError, OSError) as e:
             print(f"❌ Brochure creation failed: {e}")

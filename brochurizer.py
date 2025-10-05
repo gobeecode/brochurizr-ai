@@ -4,6 +4,7 @@ from pathlib import Path
 
 import ollama
 import openai
+from httpx import stream
 
 from helpers.credential_helper import CredentialHelper
 from helpers.file_helper import FileHelper
@@ -58,6 +59,18 @@ class Brochurizer:
             response = ollama.chat(model=self.model, messages=messages)
             return f"\n\n{response['message']['content']}"
 
+    def get_translation_messages(self, contents: str, language: str):
+        system_prompt = (f"You are a translator assistant that analyzes the given text and translates it in {language} "
+                         f"language. You should check if the language given is valid, if the language is invalid, "
+                         f"then return the original text.")
+        user_prompt = f"Translate the contents below in the {language} language. {contents}"
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+        return messages
+
     def get_create_brochure_messages(self, contents: str):
         system_prompt = ("You are an assistant that analyzes the contents of several webpages of a company and"
                          "creates a short brochure with all the relevant links. You should strictly respond in markdown format.")
@@ -71,7 +84,7 @@ class Brochurizer:
         ]
         return messages
 
-    def create_brochure(self, export=True):
+    def create_brochure(self, language=None, export=True):
         with TimeHelper.measure('create_brochure'):
             contents = self.webpage.text
             print(f"Brochure creation started for {self.webpage.title}")
@@ -92,29 +105,54 @@ class Brochurizer:
                     # Ignoring the contents of the page with errors.
                     print(f"⚠️ Could not fetch {link.get('type')} contents: {e}")
             messages = self.get_create_brochure_messages(contents)
+            print("Creating brochure...")
+            brochure_content = ""
             if self.platform == 'openai':
                 CredentialHelper.validate_openai_api_key()
                 response = openai.chat.completions.create(
                     model=self.model,  # For example: gpt-4o-mini
-                    messages=messages
+                    messages=messages,
+                    stream=True
                 )
-                print(f"\n{response.choices[0].message.content}")
+                for chunk in response:
+                    content = chunk.choices[0].delta.content or ''
+                    print(content, end='', flush=True)
+                    brochure_content += content
             else:
-                print("Creating brochure...")
                 response = ollama.chat(model=self.model, messages=messages, stream=True)
-                brochure_content = ""
                 for chunk in response:
                     content = chunk.get("message", {}).get("content", "")
                     print(content, end='', flush=True)
                     brochure_content += content
-                if export:
-                    brochure_file_name = FileHelper.normalize_filename(self.webpage.title, prefix="brochure", ext="md")
-                    brochure_file_path = Path("output", brochure_file_name)
-                    brochure_file_path.parent.mkdir(parents=True, exist_ok=True)
-                    with open(brochure_file_path, "w") as brochure_file:
-                        brochure_file.write(brochure_content)
+            if language:
+                messages = self.get_translation_messages(brochure_content, language)
+                print(f"Translating brochure in {language} language...")
+                brochure_content = ""
+                if self.platform == 'openai':
+                    CredentialHelper.validate_openai_api_key()
+                    response = openai.chat.completions.create(
+                        model=self.model,  # For example: gpt-4o-mini
+                        messages=messages,
+                        stream=True
+                    )
+                    for chunk in response:
+                        content = chunk.choices[0].delta.content or ''
+                        print(content, end='', flush=True)
+                        brochure_content += content
+                else:
+                    response = ollama.chat(model=self.model, messages=messages, stream=True)
+                    for chunk in response:
+                        content = chunk.get("message", {}).get("content", "")
+                        print(content, end='', flush=True)
+                        brochure_content += content
+            if export:
+                brochure_file_name = FileHelper.normalize_filename(self.webpage.title, prefix="brochure", ext="md")
+                brochure_file_path = Path("output", brochure_file_name)
+                brochure_file_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(brochure_file_path, "w") as brochure_file:
+                    brochure_file.write(brochure_content)
         elapsed = TimeHelper.get_elapsed('create_brochure')
-        print(f"✅ Brochure creation completed using {self.model} in {elapsed:.4f} seconds.")
+        print(f"\n✅ Brochure creation completed using {self.model} in {elapsed:.4f} seconds.")
         print(f"📁 Brochure created at {brochure_file_path}.")
 
 

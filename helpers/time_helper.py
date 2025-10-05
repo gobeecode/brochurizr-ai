@@ -1,19 +1,14 @@
 import time
 from contextlib import contextmanager
 
+
 class TimeHelper:
     _start_times = {}
     _elapsed_times = {}
 
     @staticmethod
-    def get_elapsed(label: str):
-        """Return total elapsed time for a label."""
-        return TimeHelper._elapsed_times.get(label, 0.0)
-
-    @staticmethod
     @contextmanager
     def measure(label: str):
-        """Context manager to measure elapsed time for a label."""
         TimeHelper._start_times[label] = time.perf_counter()
         try:
             yield
@@ -24,3 +19,7 @@ class TimeHelper:
                 TimeHelper._elapsed_times[label] = (
                     TimeHelper._elapsed_times.get(label, 0.0) + elapsed
                 )
+
+    @staticmethod
+    def get_elapsed(label: str):
+        return TimeHelper._elapsed_times.get(label, 0.0)

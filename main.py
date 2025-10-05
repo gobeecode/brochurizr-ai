@@ -8,7 +8,7 @@ load_dotenv()
 
 def prompt_for_url():
     while True:
-        url = input("Enter the URL of the page to brochurize: ").strip().lower()
+        url = input("Enter the URL of the page to create brochure: ").strip().lower()
         url = URLHelper.normalize_url(url)
         if not URLHelper.is_url_valid(url):
             continue
@@ -21,8 +21,8 @@ def prompt_for_url():
 def prompt_for_platform():
     while True:
         supported_platforms = ['ollama', 'openai']
-        platform = input(f"Enter the platform name: (Default: {supported_platforms[0]}. "
-                         f"Supported: {supported_platforms}) ").strip().lower()
+        platform = input(f"Enter the platform name (Default: {supported_platforms[0]}. "
+                         f"Supported: {supported_platforms}):  ").strip().lower()
         if not platform:
             platform = supported_platforms[0]
         if platform not in supported_platforms:
@@ -80,7 +80,7 @@ def main():
             export = prompt_for_export()
             webpage = Webpage(url)
             brochurizer = Brochurizer(platform=platform, model=model, webpage=webpage)
-            brochurizer.create_brochure(export=export, language=language)
+            brochurizer.create_brochure(language=language, export=export)
             break
         except (ValueError, OSError) as e:
             print(f"❌ Brochure creation failed: {e}")
@@ -91,7 +91,7 @@ def main():
             print("\nOperation cancelled by user.")
             break
         except Exception as e:
-            raise Exception(f"❌ An unexpected error occurred: {e}") from e
+            print(f"❌ An unexpected error occurred: {e}")
             break
 
 
